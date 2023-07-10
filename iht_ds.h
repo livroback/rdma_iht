@@ -3,7 +3,6 @@
 #include <infiniband/verbs.h>
 #include <cstdint>
 #include <atomic>
-
 #include "rome/rdma/channel/sync_accessor.h"
 #include "rome/rdma/connection_manager/connection.h"
 #include "rome/rdma/connection_manager/connection_manager.h"
@@ -19,6 +18,7 @@ using ::rome::rdma::remote_ptr;
 using ::rome::rdma::RemoteObjectProto;
 
 template<class K, class V, int ELIST_SIZE, int PLIST_SIZE>
+
 class RdmaIHT {
 private:
     MemoryPool::Peer self_;
@@ -39,14 +39,15 @@ private:
         struct pair_t {
             K key;
             V val;
+            int dummy; 
         };
 
         size_t count = 0; // The number of live elements in the Elist
         pair_t pairs[ELIST_SIZE]; // A list of pairs to store (stored as remote pointer to start of the contigous memory block)
         
         // Insert into elist a deconstructed pair
-        void elist_insert(const K key, const V val){
-            pairs[count] = {key, val};
+        void elist_insert(const K key, const V val, int dummy){
+            pairs[count] = {key, val, dummy};
             count++;
         }
 
@@ -280,7 +281,7 @@ public:
             for (size_t i = 0; i < e->count; i++){
                 // Linear search to determine if elist already contains the key
                 if (e->pairs[i].key == key){
-                    K result = e->pairs[i].val;
+                    K result = e->pairs[i].dummy; //Return the dummy variable for practice 
                     unlock(curr->buckets[bucket].lock, E_UNLOCKED);
                     if (!is_local(bucket_base)) pool_->Deallocate<EList>(e);
                     if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
@@ -300,7 +301,7 @@ public:
     /// @param key the key to insert
     /// @param value the value to associate with the key
     /// @return if the insert was successful
-    IHT_Res insert(K key, V value){
+    IHT_Res insert(K key, V value, int dummy){
         // start at root
         remote_plist curr = pool_->Read<PList>(root);
         remote_plist before_localized_curr = root;
@@ -334,7 +335,7 @@ public:
             if (is_null(e)){
                 // empty elist
                 remote_elist e_new = pool_->Allocate<EList>();
-                e_new->elist_insert(key, value);
+                e_new->elist_insert(key, value, dummy);
                 remote_baseptr e_base = static_cast<remote_baseptr>(e_new);
                 // modify the bucket's pointer
                 change_bucket_pointer(before_localized_curr, bucket, e_base);
@@ -360,7 +361,7 @@ public:
             // Check for enough insertion room
             if (e->count < ELIST_SIZE) {
                 // insert, unlock, return
-                e->elist_insert(key, value);
+                e->elist_insert(key, value, dummy);
                 // If we are modifying a local copy, we need to write to the remote at the end
                 if (bucket_base.id() != self_.id) pool_->Write<EList>(static_cast<remote_elist>(bucket_base), *e);
                 // unlock and return true
@@ -468,7 +469,7 @@ public:
         std::default_random_engine gen((unsigned) std::time(NULL));
         for (int c = 0; c < op_count; c++){
             int k = dist(gen) * key_range + key_lb;
-            insert(k, value(k));
+            insert(k, value(k), 123);
             // Wait some time before doing next insert...
             std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         }

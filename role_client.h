@@ -83,11 +83,11 @@ public:
       double rng = dist(gen) * 100;
       int k = dist(gen) * key_range + lb;
       if (rng < contains){ // between 0 and CONTAINS
-        return Operation(CONTAINS, k, 0);
+        return Operation(CONTAINS, k, 0, 12345);
       } else if (rng < contains + insert){ // between CONTAINS and CONTAINS + INSERT
-        return Operation(INSERT, k, k);
+        return Operation(INSERT, k, k, 1001);
       } else {
-        return Operation(REMOVE, k, 0);
+        return Operation(REMOVE, k, 0, 2002);
       }
     };
 
@@ -148,7 +148,7 @@ public:
       case(INSERT):
         if (count % progression == 0) ROME_INFO("Running Operation {}: insert({}, {})", count, op.key, op.value);
         // ROME_INFO("Running Operation {}: insert({}, {})", count, op.key, op.value);
-        res = iht_->insert(op.key, op.value);
+        res = iht_->insert(op.key, op.value, op.dummy);
         break;
       case(REMOVE):
         if (count % progression == 0) ROME_INFO("Running Operation {}: remove({})", count, op.key);
@@ -176,7 +176,7 @@ public:
       int scale_size = (CNF_PLIST_SIZE * CNF_ELIST_SIZE) * 128;
       for(int i = 0; i < scale_size; i++){
         test_output(false, iht_->contains(i), IHT_Res(false, 0), std::string("Contains ") + std::to_string(i) + std::string(" false"));
-        test_output(false, iht_->insert(i, i), IHT_Res(true, 0), std::string("Insert ") + std::to_string(i));
+        test_output(false, iht_->insert(i, i, 33232), IHT_Res(true, 0), std::string("Insert ") + std::to_string(i));
         test_output(false, iht_->contains(i), IHT_Res(true, i), std::string("Contains ") + std::to_string(i) + std::string(" true"));
       }
       ROME_INFO(" = 25% Finished = ");
@@ -196,8 +196,8 @@ public:
     } else {
       test_output(true, iht_->contains(5), IHT_Res(false, 0), "Contains 5");
       test_output(true, iht_->contains(4), IHT_Res(false, 0), "Contains 4");
-      test_output(true, iht_->insert(5, 10), IHT_Res(true, 0), "Insert 5");
-      test_output(true, iht_->insert(5, 11), IHT_Res(false, 10), "Insert 5 again should fail");
+      test_output(true, iht_->insert(5, 10, 20392), IHT_Res(true, 0), "Insert 5");
+      test_output(true, iht_->insert(5, 11, 48372), IHT_Res(false, 10), "Insert 5 again should fail");
       test_output(true, iht_->contains(5), IHT_Res(true, 10), "Contains 5");
       test_output(true, iht_->contains(4), IHT_Res(false, 0), "Contains 4");
       test_output(true, iht_->remove(5), IHT_Res(true, 10), "Remove 5");
@@ -210,6 +210,8 @@ public:
     ROME_ASSERT_OK(stop_status);
     return absl::OkStatus();
   }
+
+
 
   // A function for communicating with the server that we are done. Will wait until server says it is ok to shut down
   absl::Status Stop() override {
