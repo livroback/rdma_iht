@@ -37,6 +37,87 @@ constexpr uint16_t portNum = 18000;
 
 using cm_type = MemoryPool::cm_type;
 
+struct Node{
+    int data; 
+    Node* next; 
+};
+
+
+//methods: contains, insert, remove 
+
+void initList(Node *head, int d){
+    head->data = d; 
+    head-> next = NULL; 
+}
+
+
+void insertNode(Node *head, int d){
+    //Create the new node to insert 
+    Node *nodeToAdd = new Node; 
+    nodeToAdd->data = d; 
+    nodeToAdd->next = NULL; 
+
+    //until we have a place to put the node , keep on iterating 
+    Node *current = head;
+    //When current.next == null, the next is going to be empty spot that we can put the new node in 
+    while(current->next != NULL){
+        current = current->next; 
+    } 
+
+    current->next = nodeToAdd; 
+}
+
+
+void removeEndOfList(Node *head){
+    Node *current = head; 
+    Node *previous = NULL; 
+
+    //When current.next == null, current is on the node we want to remove
+    while(current->next != NULL){
+        Node *next = current->next; 
+        previous = current; 
+        current = next; 
+    }
+
+    //Point this previous 
+    previous->next = NULL; 
+   
+}
+
+
+bool containsNode(Node *head, int n){
+    Node *current = head; 
+    //When current == null, we have gone through the whole entire list 
+    while(current != NULL){
+        if(current->data == n){
+            return true; 
+        }
+        current = current->next; 
+    }
+    //If we get to this point, we have iterated the entire list and havent found the node 
+    return false; 
+}
+
+
+void printList(Node *head){
+    Node *current = head; 
+    //When current == null, we have gone through the whole entire list 
+
+    while(current != NULL){
+        printf("%d -> ", current->data); 
+        // ROME_INFO("{} -> ", current->data);
+        current = current->next; 
+    }
+
+        printf("null");
+        printf("\n"); 
+
+}
+
+
+
+
+
 int main(int argc, char **argv)
 {
     ROME_INIT_LOG();
@@ -114,9 +195,31 @@ int main(int argc, char **argv)
     ROME_ASSERT_OK(status_pool);
     ROME_INFO("Created memory pool");
 
-    IHT iht = IHT(self, &pool);
-    absl::Status status_iht = iht.Init(host, peers);
-    ROME_ASSERT_OK(status_iht);
+
+	struct Node *head = new Node;
+    initList(head, 6); 
+    ROME_INFO("Head data is {}", head->data); 
+    insertNode(head, 1);
+    insertNode(head, 2); 
+    insertNode(head, 3); 
+    printList(head); 
+    ROME_INFO("Contains node 1 = {}", containsNode(head, 1)); 
+    ROME_INFO("Contains node 8 = {}", containsNode(head, 8)); 
+    removeEndOfList(head); 
+    printList(head); 
+
+    // LinkedList myList = LinkedList(self, &pool); 
+
+
+
+
+
+
+
+
+    // IHT iht = IHT(self, &pool);
+    // absl::Status status_iht = iht.Init(host, peers);
+    // ROME_ASSERT_OK(status_iht);
 
 
     //----------------------------------------------------------------------
@@ -160,24 +263,24 @@ int main(int argc, char **argv)
 // --------------------------------------------------------------
 
 
-    IHT_Res insertResult = iht.insert(5, 10, 123456);
-    IHT_Res beforeDummy = iht.returnDummyValue(5);
+    // IHT_Res insertResult = iht.insert(5, 10, 123456);
+    // IHT_Res beforeDummy = iht.returnDummyValue(5);
 
-    int newVal = 100; 
-    if(insertResult.status){
-        newVal = 0; 
-    }
+    // int newVal = 100; 
+    // if(insertResult.status){
+    //     newVal = 0; 
+    // }
 
-    IHT_Res changeDummyValue = iht.changeDummyValue(5, 70+newVal);
-    IHT_Res afterDummy = iht.returnDummyValue(5);
+    // IHT_Res changeDummyValue = iht.changeDummyValue(5, 70+newVal);
+    // IHT_Res afterDummy = iht.returnDummyValue(5);
 
-    IHT_Res containsResult = iht.contains(5);
-    IHT_Res containsResult2 = iht.contains(123);
+    // IHT_Res containsResult = iht.contains(5);
+    // IHT_Res containsResult2 = iht.contains(123);
 
-     ROME_INFO("Insert Status = {}", insertResult.status);
-     ROME_INFO("Old dummy value = {}", beforeDummy.result);
-    ROME_INFO("Change Dummy Value Status = {}", changeDummyValue.status);
-    ROME_INFO("New dummy value = {}", afterDummy.result);
+    //  ROME_INFO("Insert Status = {}", insertResult.status);
+    //  ROME_INFO("Old dummy value = {}", beforeDummy.result);
+    // ROME_INFO("Change Dummy Value Status = {}", changeDummyValue.status);
+    // ROME_INFO("New dummy value = {}", afterDummy.result);
 
     exit(0);
 
