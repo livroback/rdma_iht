@@ -281,7 +281,7 @@ public:
             for (size_t i = 0; i < e->count; i++){
                 // Linear search to determine if elist already contains the key
                 if (e->pairs[i].key == key){
-                    K result = e->pairs[i].dummy; //Return the dummy variable for practice 
+                    K result = e->pairs[i].val; 
                     unlock(curr->buckets[bucket].lock, E_UNLOCKED);
                     if (!is_local(bucket_base)) pool_->Deallocate<EList>(e);
                     if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
@@ -333,6 +333,7 @@ public:
 
             // Past this point we have recursed to an elist
             if (is_null(e)){
+           //          ROME_INFO("We have reached an empty EList in Insert");
                 // empty elist
                 remote_elist e_new = pool_->Allocate<EList>();
                 e_new->elist_insert(key, value, dummy);
@@ -345,10 +346,13 @@ public:
                 return IHT_Res(true, 0);
             }
 
+            //  ROME_INFO("We have reached a non empty EList in Insert");
+
             // We have recursed to an non-empty elist
             for (size_t i = 0; i < e->count; i++){
                 // Linear search to determine if elist already contains the key
                 if (e->pairs[i].key == key){
+                    // ROME_INFO("EList already contains the key in Insert");
                     K result = e->pairs[i].val;
                     // Contains the key => unlock and return false
                     unlock(curr->buckets[bucket].lock, E_UNLOCKED);
@@ -360,6 +364,7 @@ public:
 
             // Check for enough insertion room
             if (e->count < ELIST_SIZE) {
+                // ROME_INFO("There is enough room to insert in Insert function");
                 // insert, unlock, return
                 e->elist_insert(key, value, dummy);
                 // If we are modifying a local copy, we need to write to the remote at the end
@@ -371,6 +376,8 @@ public:
                 return IHT_Res(true, 0);
             }
 
+
+            // ROME_INFO("Need more room in the insert");
             // Need more room so rehash into plist and perma-unlock
             remote_plist p = rehash(curr, count, depth, bucket);
             // modify the bucket's pointer
@@ -474,4 +481,157 @@ public:
             std::this_thread::sleep_for(std::chrono::nanoseconds(10));
         }
     }
+
+
+
+
+    //Method to return the dummy variable stored in every pair 
+
+    IHT_Res returnDummyValue(K key){
+        // start at root
+        remote_plist curr = pool_->Read<PList>(root);
+        remote_plist before_localized_curr = root;
+        size_t depth = 1, count = PLIST_SIZE;
+        bool oldBucketBase = true;
+        while (true) {
+            uint64_t bucket = level_hash(key, depth, count);
+            if (!acquire(curr->buckets[bucket].lock)){
+                // Can't lock then we are at a sub-plist
+                // Therefore we must re-fetch the PList to ensure freshness of our pointers (1 << depth-1 to adjust size of read with customized ExtendedRead)
+                remote_plist curr_temp = pool_->ExtendedRead<PList>(before_localized_curr, 1 << (depth - 1));
+                remote_plist bucket_base = static_cast<remote_plist>(curr_temp->buckets[bucket].base);
+                remote_plist base_ptr = is_local(bucket_base) || is_null(bucket_base) ? bucket_base : pool_->ExtendedRead<PList>(bucket_base, 1 << depth);
+                pool_->Deallocate<PList>(curr_temp, 1 << (depth - 1));
+
+                if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+                oldBucketBase = !is_local(bucket_base); // setting the old bucket base
+
+                before_localized_curr = bucket_base;
+                curr = base_ptr;
+                depth++;
+                count *= 2;
+                continue;
+            }
+
+            // We locked an elist, we can read the baseptr and progress
+            remote_elist bucket_base = static_cast<remote_elist>(curr->buckets[bucket].base);
+            remote_elist e = is_local(bucket_base) || is_null(bucket_base) ? bucket_base : pool_->Read<EList>(bucket_base);
+
+            // Past this point we have recursed to an elist
+            if (is_null(e)){
+                // ROME_INFO("We have made it to an empty EList in ReturnDummyValue");
+                // empty elist
+                unlock(curr->buckets[bucket].lock, E_UNLOCKED);
+                if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+                return IHT_Res(false, 0);
+            }
+
+            // Get elist and linear search
+            for (size_t i = 0; i < e->count; i++){
+                
+                // ROME_INFO("We have made it to an EList in ReturnDummyValue");
+                // Linear search to determine if elist already contains the key
+                if (e->pairs[i].key == key){
+                    K result = e->pairs[i].dummy; //Return the dummy variable for practice 
+                    unlock(curr->buckets[bucket].lock, E_UNLOCKED);
+                    if (!is_local(bucket_base)) pool_->Deallocate<EList>(e);
+                    if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+                    return IHT_Res(true, result);
+                }
+            }
+
+            // Can't find, unlock and return false
+                //  ROME_INFO("Cannot find the key in ReturnDummyValue");
+            unlock(curr->buckets[bucket].lock, E_UNLOCKED);
+            if (!is_local(bucket_base)) pool_->Deallocate<EList>(e);
+            if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+            return IHT_Res(false, 0);
+        }
+    }
+
+
+
+
+
+
+    IHT_Res changeDummyValue(K key, int new_dummy){
+        // start at root
+        remote_plist curr = pool_->Read<PList>(root);
+        remote_plist before_localized_curr = root;
+        size_t depth = 1, count = PLIST_SIZE;
+        bool oldBucketBase = true;
+        while (true) {
+            uint64_t bucket = level_hash(key, depth, count);
+            if (!acquire(curr->buckets[bucket].lock)){
+                // Can't lock then we are at a sub-plist
+                // Therefore we must re-fetch the PList to ensure freshness of our pointers (1 << depth-1 to adjust size of read with customized ExtendedRead)
+                remote_plist curr_temp = pool_->ExtendedRead<PList>(before_localized_curr, 1 << (depth - 1));
+                remote_plist bucket_base = static_cast<remote_plist>(curr_temp->buckets[bucket].base);
+                remote_plist base_ptr = is_local(bucket_base) || is_null(bucket_base) ? bucket_base : pool_->ExtendedRead<PList>(bucket_base, 1 << depth);
+                pool_->Deallocate<PList>(curr_temp, 1 << (depth - 1));
+
+                if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+                oldBucketBase = !is_local(bucket_base); // setting the old bucket base
+
+                before_localized_curr = bucket_base;
+                curr = base_ptr;
+                depth++;
+                count *= 2;
+                continue;
+            }
+
+            // We locked an elist, we can read the baseptr and progress
+            remote_elist bucket_base = static_cast<remote_elist>(curr->buckets[bucket].base);
+            remote_elist e = is_local(bucket_base) || is_null(bucket_base) ? bucket_base : pool_->Read<EList>(bucket_base);
+
+            // Past this point we have recursed to an elist
+            if (is_null(e)){
+
+
+
+                // ROME_INFO("We have an empty E list in ChangeDummyValue");
+                // empty elist
+                unlock(curr->buckets[bucket].lock, E_UNLOCKED);
+                if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+                return IHT_Res(false, 0);
+            }
+
+                //  ROME_INFO("We have made it to a non empty E list in ChangeDummyValue");
+            // Get elist and linear search
+            for (size_t i = 0; i < e->count; i++){
+                // Linear search to determine if elist already contains the key
+                if (e->pairs[i].key == key){
+                    // ROME_INFO("Key is already in the list in ChangeDummyValue");
+                    K result = e->pairs[i].val; 
+                    e->pairs[i].dummy = new_dummy; 
+                                    if (bucket_base.id() != self_.id) pool_->Write<EList>(static_cast<remote_elist>(bucket_base), *e);
+
+                
+
+                    unlock(curr->buckets[bucket].lock, E_UNLOCKED);
+                    if (!is_local(bucket_base)) pool_->Deallocate<EList>(e);
+                    if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+                    return IHT_Res(true, 0);
+                }
+            }
+
+            // Can't find, unlock and return false
+            
+            // ROME_INFO("Key cannot be found in the list in ChangeDummyValue");
+
+            unlock(curr->buckets[bucket].lock, E_UNLOCKED);
+            if (!is_local(bucket_base)) pool_->Deallocate<EList>(e);
+            if (oldBucketBase) pool_->Deallocate<PList>(curr, 1 << (depth - 1)); // deallocate if curr was not ours
+            return IHT_Res(false, 0);
+        }
+    }
+
+
+
+
+
+
+
+
+
 };

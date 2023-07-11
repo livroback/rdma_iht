@@ -22,9 +22,6 @@
 #include "rome/util/proto_util.h"
 #include "google/protobuf/text_format.h"
 
-
-
-
 ABSL_FLAG(std::string, experiment_params, "", "Experimental parameters");
 ABSL_FLAG(bool, send_bulk, false, "If to run bulk operations. (More for benchmarking)");
 ABSL_FLAG(bool, send_test, false, "If to test the functionality of the methods.");
@@ -32,15 +29,16 @@ ABSL_FLAG(bool, send_exp, false, "If to run an experiment");
 
 #define PATH_MAX 4096
 
-using ::rome::rdma::MemoryPool;
 using ::rome::rdma::ConnectionManager;
+using ::rome::rdma::MemoryPool;
 
 constexpr char iphost[] = "node0";
 constexpr uint16_t portNum = 18000;
 
 using cm_type = MemoryPool::cm_type;
 
-int main(int argc, char** argv){
+int main(int argc, char **argv)
+{
     ROME_INIT_LOG();
     absl::ParseCommandLine(argc, argv);
     bool bulk_operations = absl::GetFlag(FLAGS_send_bulk);
@@ -51,7 +49,7 @@ int main(int argc, char** argv){
     std::string experiment_parms = absl::GetFlag(FLAGS_experiment_params);
     bool success = google::protobuf::TextFormat::MergeFromString(experiment_parms, &params);
     ROME_ASSERT(success, "Couldn't parse protobuf");
-    
+
     // Get hostname to determine who we are
     char hostname[4096];
     gethostname(hostname, 4096);
@@ -64,19 +62,22 @@ int main(int argc, char** argv){
     std::vector<MemoryPool::Peer> peers;
     peers.push_back(host);
 
-    if (params.node_count() == 0){
+    if (params.node_count() == 0)
+    {
         ROME_INFO("Cannot start experiment. Node count was found to be 0");
         exit(1);
     }
-    
+
     // Set values if we are host machine as well
-    if (hostname[4] == '0'){
+    if (hostname[4] == '0')
+    {
         self = host;
         outside_exp = false;
     }
 
     // Make the peer list by iterating through the node count
-    for(int n = 1; n < params.node_count(); n++){
+    for (int n = 1; n < params.node_count(); n++)
+    {
         // Create the ip_peer (really just node name)
         std::string ippeer = "node";
         std::string node_id = std::to_string(n);
@@ -85,14 +86,16 @@ int main(int argc, char** argv){
         MemoryPool::Peer next{static_cast<uint16_t>(n), ippeer, portNum};
         peers.push_back(next);
         // Compare after 4th character to node_id
-        if (strncmp(hostname + 4, node_id.c_str(), node_id.length()) == 0){
+        if (strncmp(hostname + 4, node_id.c_str(), node_id.length()) == 0)
+        {
             // If matching, next is self
             self = next;
             outside_exp = false;
         }
     }
 
-    if (outside_exp){
+    if (outside_exp)
+    {
         std::this_thread::sleep_for(std::chrono::milliseconds(200)); // So we get this printed last
         ROME_INFO("Not in experiment. Shutting down");
         return 0;
@@ -102,10 +105,11 @@ int main(int argc, char** argv){
     uint32_t block_size = 1 << params.region_size();
     MemoryPool pool = MemoryPool(self, std::make_unique<MemoryPool::cm_type>(self.id));
 
-    for(int i = 0; i < peers.size(); i++){
+    for (int i = 0; i < peers.size(); i++)
+    {
         ROME_INFO("Peer list {}:{}@{}", i, peers.at(i).id, peers.at(i).address);
     }
-    
+
     absl::Status status_pool = pool.Init(block_size, peers);
     ROME_ASSERT_OK(status_pool);
     ROME_INFO("Created memory pool");
@@ -114,28 +118,68 @@ int main(int argc, char** argv){
     absl::Status status_iht = iht.Init(host, peers);
     ROME_ASSERT_OK(status_iht);
 
-    IHT_Res insertResult = iht.insert(5, 10, 123456);
-    IHT_Res containsResult = iht.contains(5); 
-    IHT_Res containsResult2 = iht.contains(123); 
 
+    //----------------------------------------------------------------------
+
+//     // If we are node0
+//     if (hostname[4] == '0')
+//     {
+
+//         IHT_Res insertResult = iht.insert(5, 10, 123456);
+//         ROME_INFO("Node0 Insert Status = {}", insertResult.status);
+
+//         // IHT_Res containsResult = iht.contains(5);
+//         // IHT_Res containsResult2 = iht.contains(2);
+//         // ROME_INFO("Contains 5 = {}", containsResult.status);
+//         // ROME_INFO("Contains 2 = {}", containsResult2.status);
+//     }
+//     // If we are node1
+//     else
+//     {
+
+//         // IHT_Res insertResult2 = iht.insert(2, 1, 88);
+//         // ROME_INFO("Node1 Insert Status = {}", insertResult2.status);
+
+
+//         IHT_Res removeResult = iht.remove(5); 
+//         ROME_INFO("Node1 removing node result = {}", removeResult.status);
+
+//         // IHT_Res containsResult = iht.contains(5);
+//         // IHT_Res containsResult2 = iht.contains(2);
+//         // ROME_INFO("Contains 5 = {}", containsResult.status);
+//         // ROME_INFO("Contains 2 = {}", containsResult2.status);
+
+//         // IHT_Res changeDummyValue = iht.changeDummyValue(5, 70);
+//         // ROME_INFO("Node1 Change Dummy Value Status = {}", changeDummyValue.status);
+//         // IHT_Res afterDummy = iht.returnDummyValue(5);
+//         // ROME_INFO("Node1 dummy value = {}", afterDummy.result);
+//    }
+
+
+
+// --------------------------------------------------------------
+
+
+    IHT_Res insertResult = iht.insert(5, 10, 123456);
+    IHT_Res beforeDummy = iht.returnDummyValue(5);
+
+    int newVal = 100; 
+    if(insertResult.status){
+        newVal = 0; 
+    }
+
+    IHT_Res changeDummyValue = iht.changeDummyValue(5, 70+newVal);
+    IHT_Res afterDummy = iht.returnDummyValue(5);
+
+    IHT_Res containsResult = iht.contains(5);
+    IHT_Res containsResult2 = iht.contains(123);
 
      ROME_INFO("Insert Status = {}", insertResult.status);
-     ROME_INFO("Insert Result = {}", insertResult.result);
-    ROME_INFO("Contains Status = {}", containsResult.status);
-     ROME_INFO("Contains Result = {}", containsResult.result);
-    ROME_INFO("Contains 2 Status = {}", containsResult2.status);
-     ROME_INFO("Contains 2 Result = {}", containsResult2.result);
+     ROME_INFO("Old dummy value = {}", beforeDummy.result);
+    ROME_INFO("Change Dummy Value Status = {}", changeDummyValue.status);
+    ROME_INFO("New dummy value = {}", afterDummy.result);
 
-    //Try and do reading and writing 
-  //  remote_plist iht_root = pool_->Allocate<PList>(); ?????????
-
-
-
-
-
-    exit(0); 
-
-
+    exit(0);
 
     // std::vector<std::thread> threads;
     // if (hostname[4] == '0'){
@@ -144,7 +188,7 @@ int main(int argc, char** argv){
     //         // We are the server
     //         std::unique_ptr<Server> server = Server::Create(host, peers, params, &pool);
     //         ROME_INFO("Server Created");
-    //         absl::Status run_status = server->Launch(&done, params.runtime());  
+    //         absl::Status run_status = server->Launch(&done, params.runtime());
     //         ROME_ASSERT_OK(run_status);
     //         ROME_INFO("[SERVER THREAD] -- End of execution; -- ");
     //     }));
@@ -204,7 +248,7 @@ int main(int argc, char** argv){
     //     results[i].SerializeToString(&output);
     //     r->MergeFromString(output);
     // }
-    
+
     // ROME_INFO("Compiled Proto Results ### {}", result_proto.DebugString());
 
     // std::ofstream filestream("iht_result.pbtxt");
