@@ -21,6 +21,7 @@
 #include "protos/experiment.pb.h"
 #include "rome/util/proto_util.h"
 #include "google/protobuf/text_format.h"
+#include "iht_ds.h"
 
 ABSL_FLAG(std::string, experiment_params, "", "Experimental parameters");
 ABSL_FLAG(bool, send_bulk, false, "If to run bulk operations. (More for benchmarking)");
@@ -36,86 +37,6 @@ constexpr char iphost[] = "node0";
 constexpr uint16_t portNum = 18000;
 
 using cm_type = MemoryPool::cm_type;
-
-struct Node{
-    int data; 
-    Node* next; 
-};
-
-
-//methods: contains, insert, remove 
-
-void initList(Node *head, int d){
-    head->data = d; 
-    head-> next = NULL; 
-}
-
-
-void insertNode(Node *head, int d){
-    //Create the new node to insert 
-    Node *nodeToAdd = new Node; 
-    nodeToAdd->data = d; 
-    nodeToAdd->next = NULL; 
-
-    //until we have a place to put the node , keep on iterating 
-    Node *current = head;
-    //When current.next == null, the next is going to be empty spot that we can put the new node in 
-    while(current->next != NULL){
-        current = current->next; 
-    } 
-
-    current->next = nodeToAdd; 
-}
-
-
-void removeEndOfList(Node *head){
-    Node *current = head; 
-    Node *previous = NULL; 
-
-    //When current.next == null, current is on the node we want to remove
-    while(current->next != NULL){
-        Node *next = current->next; 
-        previous = current; 
-        current = next; 
-    }
-
-    //Point this previous 
-    previous->next = NULL; 
-   
-}
-
-
-bool containsNode(Node *head, int n){
-    Node *current = head; 
-    //When current == null, we have gone through the whole entire list 
-    while(current != NULL){
-        if(current->data == n){
-            return true; 
-        }
-        current = current->next; 
-    }
-    //If we get to this point, we have iterated the entire list and havent found the node 
-    return false; 
-}
-
-
-void printList(Node *head){
-    Node *current = head; 
-    //When current == null, we have gone through the whole entire list 
-
-    while(current != NULL){
-        printf("%d -> ", current->data); 
-        // ROME_INFO("{} -> ", current->data);
-        current = current->next; 
-    }
-
-        printf("null");
-        printf("\n"); 
-
-}
-
-
-
 
 
 int main(int argc, char **argv)
@@ -196,17 +117,20 @@ int main(int argc, char **argv)
     ROME_INFO("Created memory pool");
 
 
-	struct Node *head = new Node;
-    initList(head, 6); 
-    ROME_INFO("Head data is {}", head->data); 
-    insertNode(head, 1);
-    insertNode(head, 2); 
-    insertNode(head, 3); 
-    printList(head); 
-    ROME_INFO("Contains node 1 = {}", containsNode(head, 1)); 
-    ROME_INFO("Contains node 8 = {}", containsNode(head, 8)); 
-    removeEndOfList(head); 
-    printList(head); 
+	LinkedList *myList = new LinkedList(); 
+
+    myList->insertNode(1);
+    myList->insertNode(2);
+    myList->insertNode(3);
+    myList->insertNode(4); 
+    myList->insertNode(5);
+    myList->printList(); 
+
+    ROME_INFO("Contains node 1 = {}", myList->containsNode(1)); 
+    ROME_INFO("Contains node 8 = {}", myList->containsNode(8)); 
+    
+    myList->removeEndOfList(); 
+    myList->printList(); 
 
     // LinkedList myList = LinkedList(self, &pool); 
 
