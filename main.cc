@@ -117,34 +117,20 @@ int main(int argc, char **argv)
     ROME_INFO("Created memory pool");
 
 
-	// LinkedList *myList = new LinkedList(); 
-
-    // myList->insertNode(1);
-    // myList->insertNode(2);
-    // myList->insertNode(3);
-    // myList->insertNode(4); 
-    // myList->insertNode(5);
-    // myList->printList(); 
-
-    // ROME_INFO("Contains node 1 = {}", myList->containsNode(1)); 
-    // ROME_INFO("Contains node 8 = {}", myList->containsNode(8)); 
-    
-    // myList->removeEndOfList(); 
-    // myList->printList(); 
-
     LinkedList myList = LinkedList(self, &pool);
     absl::Status status_linkedList = myList.Init(host, peers);
     ROME_ASSERT_OK(status_linkedList);
 
+    //myList.insertNode(1);
+    // myList.insertNode(2);
+    // myList.insertNode(3);
+    // myList.insertNode(4); 
+    // myList.insertNode(5);
+    // ROME_INFO("Contains node 1 = {}", myList.containsNode(1)); 
+    // ROME_INFO("Contains node 8 = {}", myList.containsNode(8)); 
+    myList.printList(); 
 
-    // IHT iht = IHT(self, &pool);
-    // absl::Status status_iht = iht.Init(host, peers);
-    // ROME_ASSERT_OK(status_iht);
-
-
-
-
-
+    
 
 
     // std::vector<std::thread> threads;
