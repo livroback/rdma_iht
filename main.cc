@@ -117,28 +117,24 @@ int main(int argc, char **argv)
     ROME_INFO("Created memory pool");
 
 
-	LinkedList *myList = new LinkedList(); 
+	// LinkedList *myList = new LinkedList(); 
 
-    myList->insertNode(1);
-    myList->insertNode(2);
-    myList->insertNode(3);
-    myList->insertNode(4); 
-    myList->insertNode(5);
-    myList->printList(); 
+    // myList->insertNode(1);
+    // myList->insertNode(2);
+    // myList->insertNode(3);
+    // myList->insertNode(4); 
+    // myList->insertNode(5);
+    // myList->printList(); 
 
-    ROME_INFO("Contains node 1 = {}", myList->containsNode(1)); 
-    ROME_INFO("Contains node 8 = {}", myList->containsNode(8)); 
+    // ROME_INFO("Contains node 1 = {}", myList->containsNode(1)); 
+    // ROME_INFO("Contains node 8 = {}", myList->containsNode(8)); 
     
-    myList->removeEndOfList(); 
-    myList->printList(); 
+    // myList->removeEndOfList(); 
+    // myList->printList(); 
 
-    // LinkedList myList = LinkedList(self, &pool); 
-
-
-
-
-
-
+    LinkedList myList = LinkedList(self, &pool);
+    absl::Status status_linkedList = myList.Init(host, peers);
+    ROME_ASSERT_OK(status_linkedList);
 
 
     // IHT iht = IHT(self, &pool);
@@ -146,67 +142,10 @@ int main(int argc, char **argv)
     // ROME_ASSERT_OK(status_iht);
 
 
-    //----------------------------------------------------------------------
-
-//     // If we are node0
-//     if (hostname[4] == '0')
-//     {
-
-//         IHT_Res insertResult = iht.insert(5, 10, 123456);
-//         ROME_INFO("Node0 Insert Status = {}", insertResult.status);
-
-//         // IHT_Res containsResult = iht.contains(5);
-//         // IHT_Res containsResult2 = iht.contains(2);
-//         // ROME_INFO("Contains 5 = {}", containsResult.status);
-//         // ROME_INFO("Contains 2 = {}", containsResult2.status);
-//     }
-//     // If we are node1
-//     else
-//     {
-
-//         // IHT_Res insertResult2 = iht.insert(2, 1, 88);
-//         // ROME_INFO("Node1 Insert Status = {}", insertResult2.status);
-
-
-//         IHT_Res removeResult = iht.remove(5); 
-//         ROME_INFO("Node1 removing node result = {}", removeResult.status);
-
-//         // IHT_Res containsResult = iht.contains(5);
-//         // IHT_Res containsResult2 = iht.contains(2);
-//         // ROME_INFO("Contains 5 = {}", containsResult.status);
-//         // ROME_INFO("Contains 2 = {}", containsResult2.status);
-
-//         // IHT_Res changeDummyValue = iht.changeDummyValue(5, 70);
-//         // ROME_INFO("Node1 Change Dummy Value Status = {}", changeDummyValue.status);
-//         // IHT_Res afterDummy = iht.returnDummyValue(5);
-//         // ROME_INFO("Node1 dummy value = {}", afterDummy.result);
-//    }
 
 
 
-// --------------------------------------------------------------
 
-
-    // IHT_Res insertResult = iht.insert(5, 10, 123456);
-    // IHT_Res beforeDummy = iht.returnDummyValue(5);
-
-    // int newVal = 100; 
-    // if(insertResult.status){
-    //     newVal = 0; 
-    // }
-
-    // IHT_Res changeDummyValue = iht.changeDummyValue(5, 70+newVal);
-    // IHT_Res afterDummy = iht.returnDummyValue(5);
-
-    // IHT_Res containsResult = iht.contains(5);
-    // IHT_Res containsResult2 = iht.contains(123);
-
-    //  ROME_INFO("Insert Status = {}", insertResult.status);
-    //  ROME_INFO("Old dummy value = {}", beforeDummy.result);
-    // ROME_INFO("Change Dummy Value Status = {}", changeDummyValue.status);
-    // ROME_INFO("New dummy value = {}", afterDummy.result);
-
-    exit(0);
 
     // std::vector<std::thread> threads;
     // if (hostname[4] == '0'){
