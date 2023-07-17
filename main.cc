@@ -118,17 +118,17 @@ int main(int argc, char **argv)
 
 
     LinkedList myList = LinkedList(self, &pool);
+       // ROME_INFO("This is the address of our local linked list = {}", std::addressof(myList)); 
     absl::Status status_linkedList = myList.Init(host, peers);
     ROME_ASSERT_OK(status_linkedList);
-
-    //myList.insertNode(1);
-    // myList.insertNode(2);
+    myList.insertNode(1);
+    myList.insertNode(2);
     // myList.insertNode(3);
     // myList.insertNode(4); 
     // myList.insertNode(5);
     // ROME_INFO("Contains node 1 = {}", myList.containsNode(1)); 
     // ROME_INFO("Contains node 8 = {}", myList.containsNode(8)); 
-    myList.printList(); 
+    //myList.printList(); 
 
     
 

@@ -20,14 +20,13 @@ using ::rome::rdma::RemoteObjectProto;
 class Node{
 public: 
     int data; 
-    Node* next;
+    remote_ptr<Node> next;
+
     Node(){
-        this->data = 0; 
-        this->next = NULL; 
+        this->data = 0;
     }
     Node(int data){
         this->data = data; 
-        this->next = NULL; 
     }
 };
 
@@ -35,7 +34,9 @@ public:
 class LinkedList{
 
 public: 
-Node* head; 
+remote_ptr<Node> head; 
+int length; 
+
 LinkedList() {
     ROME_INFO("Running the linked list constructor"); 
 } 
@@ -44,19 +45,17 @@ LinkedList() {
 //These two are going to be initialized at one point     
 MemoryPool::Peer self_;
 MemoryPool* pool_; 
+remote_ptr<LinkedList> root; //start of the remote linked list 
 
-
-remote_ptr<LinkedList> remote_head; //start of the remote linked list 
-
-//At the head of the remote linked list, allocate enough space for a node (which is an int)
 void InitLinkedList(remote_ptr<LinkedList> p){
+
     ROME_INFO("Running the init linked list function");
-
-    Node* dummy = new Node(70); 
-    //  [ojr] what do i do here??? The next two lines result in a seg fault 
-    head = dummy; //Set the remote head == null????
-
-    // *p->head = NULL; //Set the local head == null?????  
+    //Make the remote head null 
+    p->head = remote_nullptr; 
+    //Make head's next null as well 
+   // p->head->next = remote_nullptr; 
+   
+    p->length = 0; //Bc we dont have a head yet
 }
 
 
@@ -72,14 +71,14 @@ LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
         if (is_host_){
             // Host machine, it is my responsibility to initiate configuration
             RemoteObjectProto proto;
-            remote_ptr<LinkedList> linkedList_head = pool_->Allocate<LinkedList>();
+            remote_ptr<LinkedList> ll_root = pool_->Allocate<LinkedList>();
 
 
             // Init plist and set remote proto to communicate its value
-            InitLinkedList(linkedList_head);
+            InitLinkedList(ll_root);
 
-            this->remote_head = linkedList_head;
-            proto.set_raddr(linkedList_head.address());
+            this->root = ll_root;
+            proto.set_raddr(ll_root.address());
 
             // Iterate through peers
             for (auto p = peers.begin(); p != peers.end(); p++){
@@ -108,8 +107,8 @@ LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
             ROME_CHECK_OK(ROME_RETURN(got.status()), got);
 
             // From there, decode the data into a value
-            remote_ptr<LinkedList> linkedList_head = decltype(linkedList_head)(host.id, got->raddr());
-            this->remote_head = linkedList_head;
+            remote_ptr<LinkedList> ll_root = decltype(ll_root)(host.id, got->raddr());
+            this->root = ll_root;
         }
 
         return absl::OkStatus();
@@ -120,76 +119,117 @@ inline bool is_local(remote_ptr<LinkedList> ptr){
     return ptr.id() == self_.id;
 }
 
+inline bool is_null(remote_ptr<LinkedList> ptr){
+    return ptr == remote_nullptr;
+}
+
+inline bool is_local(remote_ptr<Node> ptr){
+    return ptr.id() == self_.id;
+}
+
+inline bool is_null(remote_ptr<Node> ptr){
+    return ptr == remote_nullptr;
+}
+
+
+
+
 
 void insertNode(int d){
-    //Read whatever is at the head of the linked list and make this curr 
-    remote_ptr<LinkedList> curr = pool_->Read<LinkedList>(remote_head);
-
+    printf("Insert node function!\n"); 
 
     //Create the new node to insert 
-    Node *nodeToAdd = new Node(d); 
-    if(head == NULL){
+    remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>(); 
+    nodeToAdd->data = d; 
+
+    //If the head of the remote linked list is null 
+    if(is_null(head)){
+        ROME_INFO("Head is null in our remote linked list so we are going to make node {} the head",d); 
+        //Allocate memory for the head
+        head = pool_->Allocate<Node>(); 
+        //Make this node the head
         head = nodeToAdd; 
+        // Make head.next = null
+        head->next = remote_nullptr; 
+        //Increment the size of the linked list
+        length++; 
+
+        if(!is_null(head)){
+        ROME_INFO("Head is no longer null -- node {} has been added to head", d); 
+        }
+
         return; 
     }
-    //until we have a place to put the node , keep on iterating 
-    Node *current = head;
-    //When current.next == null, the next is going to be empty spot that we can put the new node in 
-    while(current->next != NULL){
-        current = current->next; 
-    } 
-    current->next = nodeToAdd; 
+
+    //If the head of the linked list is no longer null, we have to find out where to put this new node
+
+    //Start at pointer to the head and iterate to the last node in the list 
+    remote_ptr<Node> curr = pool_->Read<Node>(head);
+
+  //  Iterate to the last node in the list and make this curr 
+    for(int i=0; i<length-1; i++){
+       curr = curr->next; 
+    }
+
+    //Curr now holds the last node, so last node.next should be this new node 
+    curr->next = nodeToAdd;
+    //Make the newNode.next point to null 
+    nodeToAdd->next = remote_nullptr; 
+     ROME_INFO("Insert complete: node {} has been added to end of the list", d); 
+
+    return; 
+
 }
 
 
 
 
 
-void removeEndOfList(){
-    Node *current = head; 
-    Node *previous = NULL; 
+// void removeEndOfList(){
+//     Node *current = head; 
+//     Node *previous = NULL; 
 
-    //When current.next == null, current is on the node we want to remove
-    while(current->next != NULL){
-        Node *next = current->next; 
-        previous = current; 
-        current = next; 
-    }
+//     //When current.next == null, current is on the node we want to remove
+//     while(current->next != NULL){
+//         Node *next = current->next; 
+//         previous = current; 
+//         current = next; 
+//     }
 
-    //Point this previous 
-    previous->next = NULL; 
+//     //Point this previous 
+//     previous->next = NULL; 
    
-}
+// }
 
 
-bool containsNode(int n){
-    Node *current = head; 
-    //When current == null, we have gone through the whole entire list 
-    while(current != NULL){
-        if(current->data == n){
-            return true; 
-        }
-        current = current->next; 
-    }
-    //If we get to this point, we have iterated the entire list and havent found the node 
-    return false; 
-}
+// bool containsNode(int n){
+//     Node *current = head; 
+//     //When current == null, we have gone through the whole entire list 
+//     while(current != NULL){
+//         if(current->data == n){
+//             return true; 
+//         }
+//         current = current->next; 
+//     }
+//     //If we get to this point, we have iterated the entire list and havent found the node 
+//     return false; 
+// }
 
 
-void printList(){
-    Node *current = head; 
-    //When current == null, we have gone through the whole entire list 
+// void printList(){
+//     Node *current = head; 
+//     //When current == null, we have gone through the whole entire list 
 
-    while(current != NULL){
-        printf("%d -> ", current->data); 
-        // ROME_INFO("{} -> ", current->data);
-        current = current->next; 
-    }
+//     while(current != NULL){
+//         printf("%d -> ", current->data); 
+//         // ROME_INFO("{} -> ", current->data);
+//         current = current->next; 
+//     }
 
-        printf("null");
-        printf("\n"); 
+//         printf("null");
+//         printf("\n"); 
 
-}
+// }
 
 
 
