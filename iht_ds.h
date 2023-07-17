@@ -53,9 +53,10 @@ void InitLinkedList(remote_ptr<LinkedList> p){
     //Make the remote head null 
     p->head = remote_nullptr; 
     //Make head's next null as well 
-   // p->head->next = remote_nullptr; 
-   
-    p->length = 0; //Bc we dont have a head yet
+    // p->head->next = remote_nullptr; 
+
+   p->length = 0; //Bc we dont have a head yet
+   ROME_INFO("Value of length is {}", p->length); 
 }
 
 
@@ -136,6 +137,9 @@ inline bool is_null(remote_ptr<Node> ptr){
 
 
 void insertNode(int d){
+    
+     ROME_INFO("Value of length is {} at line 141", length); 
+
     printf("Insert node function!\n"); 
 
     //Create the new node to insert 
@@ -147,36 +151,54 @@ void insertNode(int d){
         ROME_INFO("Head is null in our remote linked list so we are going to make node {} the head",d); 
         //Allocate memory for the head
         head = pool_->Allocate<Node>(); 
-        //Make this node the head
-        head = nodeToAdd; 
+
+        //Make this node the head --> head = nodeToAdd 
+      //  pool_->Write<Node>(nodeToAdd, *head); 
+        head=nodeToAdd; 
+
         // Make head.next = null
-        head->next = remote_nullptr; 
+        head->next = remote_nullptr;
+ 
         //Increment the size of the linked list
-        length++; 
+        length++;
 
         if(!is_null(head)){
         ROME_INFO("Head is no longer null -- node {} has been added to head", d); 
         }
 
+
+    ROME_INFO("Value of length is {}", length); 
         return; 
     }
+
+    printf("Head of the linked list is no longer null, find out where to put this new node\n"); 
+
 
     //If the head of the linked list is no longer null, we have to find out where to put this new node
 
     //Start at pointer to the head and iterate to the last node in the list 
     remote_ptr<Node> curr = pool_->Read<Node>(head);
+    ROME_INFO("Value at curr is {}", curr->data); 
 
   //  Iterate to the last node in the list and make this curr 
     for(int i=0; i<length-1; i++){
        curr = curr->next; 
+           ROME_INFO("Value at new curr is {}", curr->data); 
     }
 
-    //Curr now holds the last node, so last node.next should be this new node 
-    curr->next = nodeToAdd;
+
+
+    //Curr now holds the last node, so last node.next should be this new node -->  curr->next = nodeToAdd;
+    curr->next = nodeToAdd; 
+ //   pool_->Write<Node>(nodeToAdd, *curr->next); 
+
+
     //Make the newNode.next point to null 
     nodeToAdd->next = remote_nullptr; 
+    length++; 
      ROME_INFO("Insert complete: node {} has been added to end of the list", d); 
 
+    ROME_INFO("Value of length is {} at line 198", length); 
     return; 
 
 }
@@ -202,6 +224,7 @@ void insertNode(int d){
 // }
 
 
+
 // bool containsNode(int n){
 //     Node *current = head; 
 //     //When current == null, we have gone through the whole entire list 
@@ -216,20 +239,25 @@ void insertNode(int d){
 // }
 
 
-// void printList(){
-//     Node *current = head; 
-//     //When current == null, we have gone through the whole entire list 
+void printList(){
+    //Start at the head
+    remote_ptr<Node> current = pool_->Read<Node>(head); 
+    printf("%d -> ", current->data); 
 
-//     while(current != NULL){
-//         printf("%d -> ", current->data); 
-//         // ROME_INFO("{} -> ", current->data);
-//         current = current->next; 
-//     }
+    //When current == null, we have gone through the whole entire list 
 
-//         printf("null");
-//         printf("\n"); 
+    // for(int i=0; i<length; i++){
+    //     printf("%d -> ", current->data); 
+    //     current = pool_->Read<Node>(current->next);; 
+    // }
 
-// }
+
+    // if(current == remote_nullptr){
+    //     printf("null");
+    //     printf("\n"); 
+    // }
+
+}
 
 
 
