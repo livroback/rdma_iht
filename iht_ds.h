@@ -36,7 +36,6 @@ class LinkedList{
 
 public: 
 remote_ptr<Node> head; 
-// int length; 
 
 LinkedList() {
     ROME_INFO("Running the linked list constructor"); 
@@ -183,21 +182,29 @@ void insertNode(int d){
 bool remove(int key){
     remote_ptr<Node> previous = remote_nullptr; 
     remote_ptr<Node> current = pool_->Read<Node>(head);
+    ROME_INFO("Past head"); 
     //Until we are done traversing the list....  
     while (current != remote_nullptr) {
       if (current->data == key) {   
           if(current == head){
-              head = head->next;
-              current = head;
+            head = head->next;
+            current = head;
+            pool_->Write<Node>(head, *current);
+            printList(); 
+                  return true;
             }
         else{
-            previous->next = current->next;
-            pool_->Write<Node>(current->next, *(previous->next));
+           previous->next = current->next;
+             pool_->Write<Node>(current->next, *(previous->next));
             current = current->next;
+            printList(); 
+             return true;
           }
       }
       else {
-          previous = current;
+         previous = current;
+         //edit 
+    pool_->Write<Node>(current, *(previous));
           current = current->next;
       }
     }
@@ -206,8 +213,8 @@ bool remove(int key){
     if (current == remote_nullptr) {
       return false;
     }
-    printList(); 
-    return true;
+
+
 }
 
 

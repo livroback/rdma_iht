@@ -116,9 +116,7 @@ int main(int argc, char **argv)
     ROME_ASSERT_OK(status_pool);
     ROME_INFO("Created memory pool");
 
-
     LinkedList myList = LinkedList(self, &pool);
-       // ROME_INFO("This is the address of our local linked list = {}", std::addressof(myList)); 
     absl::Status status_linkedList = myList.Init(host, peers);
     ROME_ASSERT_OK(status_linkedList);
 
@@ -128,12 +126,10 @@ int main(int argc, char **argv)
     myList.insertNode(4); 
     myList.insertNode(5);
 
-
     ROME_INFO("Contains node 1 = {}", myList.containsNode(1)); 
     ROME_INFO("Contains node 8 = {}", myList.containsNode(8)); 
+
     ROME_INFO("Remove node 4 = {}", myList.remove(4)); 
     ROME_INFO("Remove node 10 = {}", myList.remove(10)); 
-
-    
 
 }
