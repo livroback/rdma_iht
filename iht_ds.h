@@ -1,5 +1,4 @@
 #pragma once
-
 #include <infiniband/verbs.h>
 #include <cstdint>
 #include <atomic>
@@ -67,6 +66,7 @@ LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
         bool is_host_ = self_.id == host.id;
 
         if (is_host_){
+            ROME_INFO("This is the host machine!"); 
             // Host machine, it is my responsibility to initiate configuration
             RemoteObjectProto proto;
             remote_ptr<LinkedList> ll_root = pool_->Allocate<LinkedList>();
@@ -131,22 +131,26 @@ inline bool is_null(remote_ptr<Node> ptr){
 
 
 
-
-
 void insertNode(int d){
     //Create the new node to insert 
     remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>(); 
+
+    if(is_local(head)){
+        printf("Head is local!");
+    }
     nodeToAdd->data = d; 
 
     //If the head of the remote linked list is null 
     if(is_null(head)){
         //Allocate memory for the head
         head = pool_->Allocate<Node>(); 
-        head=nodeToAdd; 
 
+        head=nodeToAdd; 
         head->next = remote_nullptr; 
-        // tempNode->next = remote_nullptr; 
- 
+        
+        pool_->Write<Node>(nodeToAdd, *head);
+        // pool_->Write<Node>(remote_nullptr, *(head->next));
+
         //Increment the size of the linked list
         length++;
         ROME_INFO("Head is no longer null -- node {} has been added to head", d); 
@@ -164,6 +168,7 @@ void insertNode(int d){
         c = c->next; 
     }
       c->next = nodeToAdd; 
+      pool_->Write<Node>(nodeToAdd, *(c->next));
 
      length++; 
      ROME_INFO("Insert complete: node {} has been added to end of the list", d); 
@@ -187,6 +192,7 @@ bool remove(int key){
             }
         else{
             previous->next = current->next;
+            pool_->Write<Node>(current->next, *(previous->next));
             current = current->next;
           }
       }
