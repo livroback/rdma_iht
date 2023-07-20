@@ -16,7 +16,6 @@ using ::rome::rdma::remote_nullptr;
 using ::rome::rdma::remote_ptr;
 using ::rome::rdma::RemoteObjectProto;
 
-int length = 0;  
 
 class Node{
 public: 
@@ -49,9 +48,8 @@ remote_ptr<LinkedList> root; //start of the remote linked list
 
 void InitLinkedList(remote_ptr<LinkedList> p){
     ROME_INFO("Running the init linked list function");
-    //Make the remote head null 
+    //Head is  null to starrt 
     p->head = remote_nullptr; 
-   length = 0; //Bc we dont have a head yet
 }
 
 
@@ -144,9 +142,10 @@ void insertNode(int d){
         //Allocate memory for the head
         head = pool_->Allocate<Node>(); 
 
+    //change local linked list
         head=nodeToAdd; 
         head->next = remote_nullptr; 
-        
+    //change remote linked list 
         pool_->Write<Node>(nodeToAdd, *head);
         // pool_->Write<Node>(remote_nullptr, *(head->next));
 
@@ -166,6 +165,7 @@ void insertNode(int d){
     while(c->next != remote_nullptr){
         c = c->next; 
     }
+    //Change locally, change remotely 
       c->next = nodeToAdd; 
       pool_->Write<Node>(nodeToAdd, *(c->next));
 
@@ -186,6 +186,7 @@ bool remove(int key){
     //Until we are done traversing the list....  
     while (current != remote_nullptr) {
       if (current->data == key) {   
+        //If key is at the head, make head point to next and swap out head 
           if(current == head){
             head = head->next;
             current = head;
@@ -193,6 +194,7 @@ bool remove(int key){
             printList(); 
                   return true;
             }
+            //If key is found, but not at head
         else{
            previous->next = current->next;
              pool_->Write<Node>(current->next, *(previous->next));
@@ -201,6 +203,7 @@ bool remove(int key){
              return true;
           }
       }
+      //If we have not traversed on the key yet move the pointer 
       else {
          previous = current;
          //edit 
