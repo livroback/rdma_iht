@@ -16,6 +16,7 @@ using ::rome::rdma::remote_nullptr;
 using ::rome::rdma::remote_ptr;
 using ::rome::rdma::RemoteObjectProto;
 
+int length = 0; 
 
 class Node{
 public: 
