@@ -16,59 +16,61 @@ using ::rome::rdma::remote_nullptr;
 using ::rome::rdma::remote_ptr;
 using ::rome::rdma::RemoteObjectProto;
 
-int length = 0; 
-
-class Node{
-public: 
-    int data; 
+class Node {
+public:
+    int data;
     remote_ptr<Node> next;
 
-    Node(){
-        this->data = 0;
-    }
-    Node(int data){
-        this->data = data; 
-    }
+    Node() : data(0), next(remote_nullptr) {}
+    Node(int d) : data(d), next(remote_nullptr) {}
 };
 
+class LinkedList {
+public:
+    remote_ptr<Node> head;
 
-class LinkedList{
+    LinkedList() {
+        ROME_INFO("Running the linked list constructor");
+    }
 
-public: 
-remote_ptr<Node> head; 
+    // These two are going to be initialized at one point
+    MemoryPool::Peer self_;
+    MemoryPool* pool_;
+    remote_ptr<LinkedList> root; // Start of the remote linked list
 
-LinkedList() {
-    ROME_INFO("Running the linked list constructor"); 
-} 
+    void InitLinkedList(remote_ptr<LinkedList> p);
 
+    template <typename T>
+    inline bool is_local(remote_ptr<T> ptr) {
+        return ptr.id() == self_.id;
+    }
 
-//These two are going to be initialized at one point     
-MemoryPool::Peer self_;
-MemoryPool* pool_; 
-remote_ptr<LinkedList> root; //start of the remote linked list 
+    template <typename T>
+    inline bool is_null(remote_ptr<T> ptr) {
+        return ptr == remote_nullptr;
+    }
 
-void InitLinkedList(remote_ptr<LinkedList> p){
-    ROME_INFO("Running the init linked list function");
-    //Head is  null to starrt 
-    p->head = remote_nullptr; 
-}
+    void insertNode(int d);
 
+    bool remove(int key);
 
-using conn_type = MemoryPool::conn_type;
-LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
-};
+    bool containsNode(int n);
 
+    void printList();
 
-// (Remote) Initializes the linked list by connecting to the peers and exchanging the head pointer 
-    absl::Status Init(MemoryPool::Peer host, const std::vector<MemoryPool::Peer> &peers) {
+    using conn_type = MemoryPool::conn_type;
+    LinkedList(MemoryPool::Peer self = MemoryPool::Peer{}, MemoryPool* pool = nullptr)
+        : self_(self), pool_(pool) {}
+
+    // (Remote) Initializes the linked list by connecting to the peers and exchanging the head pointer
+    absl::Status Init(MemoryPool::Peer host, const std::vector<MemoryPool::Peer>& peers) {
         bool is_host_ = self_.id == host.id;
 
-        if (is_host_){
-            ROME_INFO("This is the host machine!"); 
+        if (is_host_) {
+            ROME_INFO("This is the host machine!");
             // Host machine, it is my responsibility to initiate configuration
             RemoteObjectProto proto;
             remote_ptr<LinkedList> ll_root = pool_->Allocate<LinkedList>();
-
 
             // Init plist and set remote proto to communicate its value
             InitLinkedList(ll_root);
@@ -77,7 +79,7 @@ LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
             proto.set_raddr(ll_root.address());
 
             // Iterate through peers
-            for (auto p = peers.begin(); p != peers.end(); p++){
+            for (auto p = peers.begin(); p != peers.end(); p++) {
                 // Ignore sending pointer to myself
                 if (p->id == self_.id) continue;
 
@@ -97,7 +99,7 @@ LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
 
             // Try to get the data from the machine, repeatedly trying until successful
             auto got = conn_or.value()->channel()->TryDeliver<RemoteObjectProto>();
-            while(got.status().code() == absl::StatusCode::kUnavailable) {
+            while (got.status().code() == absl::StatusCode::kUnavailable) {
                 got = conn_or.value()->channel()->TryDeliver<RemoteObjectProto>();
             }
             ROME_CHECK_OK(ROME_RETURN(got.status()), got);
@@ -109,146 +111,106 @@ LinkedList(MemoryPool::Peer self, MemoryPool* pool) : self_(self), pool_(pool){
 
         return absl::OkStatus();
     }
-
-
-inline bool is_local(remote_ptr<LinkedList> ptr){
-    return ptr.id() == self_.id;
-}
-
-inline bool is_null(remote_ptr<LinkedList> ptr){
-    return ptr == remote_nullptr;
-}
-
-inline bool is_local(remote_ptr<Node> ptr){
-    return ptr.id() == self_.id;
-}
-
-inline bool is_null(remote_ptr<Node> ptr){
-    return ptr == remote_nullptr;
-}
-
-
-
-void insertNode(int d){
-    //Create the new node to insert 
-    remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>(); 
-
-    if(is_local(head)){
-        printf("Head is local!");
-    }
-    nodeToAdd->data = d; 
-
-    //If the head of the remote linked list is null 
-    if(is_null(head)){
-        //Allocate memory for the head
-        head = pool_->Allocate<Node>(); 
-
-    //change local linked list
-        head=nodeToAdd; 
-        head->next = remote_nullptr; 
-    //change remote linked list 
-        pool_->Write<Node>(nodeToAdd, *head);
-        // pool_->Write<Node>(remote_nullptr, *(head->next));
-
-        //Increment the size of the linked list
-        length++;
-        ROME_INFO("Head is no longer null -- node {} has been added to head", d); 
-        printList(); 
-    }
-    
-    else{
-    //If the head of the linked list is no longer null, we have to find out where to put this new node
-    //Start at pointer to the head and iterate to the last node in the list
-    remote_ptr<Node> c = head; 
-    nodeToAdd->next = remote_nullptr; 
-
-  //  Iterate to the last node in the list and make this curr 
-    while(c->next != remote_nullptr){
-        c = c->next; 
-    }
-    //Change locally, change remotely 
-      c->next = nodeToAdd; 
-      pool_->Write<Node>(nodeToAdd, *(c->next));
-
-     length++; 
-     ROME_INFO("Insert complete: node {} has been added to end of the list", d); 
-    printList(); 
-    }
-}
-
-
-
-
-
-bool remove(int key){
-    remote_ptr<Node> previous = remote_nullptr; 
-    remote_ptr<Node> current = pool_->Read<Node>(head);
-    ROME_INFO("Past head"); 
-    //Until we are done traversing the list....  
-    while (current != remote_nullptr) {
-      if (current->data == key) {   
-        //If key is at the head, make head point to next and swap out head 
-          if(current == head){
-            head = head->next;
-            current = head;
-            pool_->Write<Node>(head, *current);
-            printList(); 
-                  return true;
-            }
-            //If key is found, but not at head
-        else{
-           previous->next = current->next;
-             pool_->Write<Node>(current->next, *(previous->next));
-            current = current->next;
-            printList(); 
-             return true;
-          }
-      }
-      //If we have not traversed on the key yet move the pointer 
-      else {
-         previous = current;
-         //edit 
-    pool_->Write<Node>(current, *(previous));
-          current = current->next;
-      }
-    }
-
-    // The key is not found in our linked list 
-    if (current == remote_nullptr) {
-      return false;
-    }
-
-
-}
-
-
-
-bool containsNode(int n){
-    remote_ptr<Node> current = pool_->Read<Node>(head);
-    //When current == null, we have gone through the whole entire list 
-    while(current != remote_nullptr){
-        if(current->data == n){
-            return true; 
-        }
-        current = current->next; 
-    }
-    //If we get to this point, we have iterated the entire list and havent found the node 
-    return false; 
-}
-
-
-void printList(){
-    remote_ptr<Node> t = pool_->Read<Node>(head);
-    while(t != remote_nullptr){
-        printf("%d -> ", t->data);
-        t = t->next; 
-    }
-        printf("NULL"); 
-        printf("\n");
-
-}
-
-
-
-
 };
+
+void LinkedList::InitLinkedList(remote_ptr<LinkedList> p) {
+    ROME_INFO("Running the init linked list function");
+
+    // Allocate memory for the head if it's null
+    if (is_null(p->head)) {
+        p->head = pool_->Allocate<Node>();
+        ROME_INFO("Head is allocated");
+        p->head = remote_nullptr;
+    }
+}
+
+void LinkedList::insertNode(int d) {
+    // Create the new node to insert
+    remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>();
+    nodeToAdd->data = d;
+    ROME_INFO("new data to add is {}", nodeToAdd->data);
+
+    if (is_null(head)) {
+        ROME_INFO("Head is a null pointer!");
+        // Change local linked list
+        head = nodeToAdd;
+        head->next = pool_->Allocate<Node>();
+        head->next = remote_nullptr;
+        ROME_INFO("Head is no longer null -- node {} has been added to head", d);
+        printList();
+    } else {
+        ROME_INFO("Going to be adding a node at the end of the list!!!!!!!!!!!!");
+        // Start at pointer to the head and iterate to the last node in the list
+        remote_ptr<Node> c = pool_->Read<Node>(head);
+        ROME_INFO("Value at head is = {}", c->data);
+
+        // Iterate to the last node in the list
+        while (!is_null(c->next)) {
+            c = pool_->Read<Node>(c->next);
+            ROME_INFO("Value at current is = {}", c->data);
+        }
+
+        // Change locally
+        c->next = pool_->Allocate<Node>();
+        c->next = nodeToAdd;
+        ROME_INFO("c-> next = {}", c->next->data);
+        nodeToAdd->next = remote_nullptr;
+
+        ROME_INFO("Insert complete: node {} has been added to end of the list", d);
+        printList();
+    }
+}
+
+bool LinkedList::remove(int key) {
+    remote_ptr<Node> previous = remote_nullptr;
+    remote_ptr<Node> current = pool_->Read<Node>(head);
+    ROME_INFO("Past head");
+
+    // Iterate through the list
+    while (current != remote_nullptr) {
+        if (current->data == key) {
+            if (current == head) {
+                head = head->next;
+                current = head;
+                pool_->Write<Node>(head, *current);
+                printList();
+            } else {
+                previous->next = current->next;
+                pool_->Write<Node>(current->next, *(previous->next));
+                current = current->next;
+                printList();
+            }
+            return true;
+        } else {
+            previous = current;
+            pool_->Write<Node>(current, *(previous));
+            current = current->next;
+        }
+    }
+
+    // The key is not found in our linked list
+    return false;
+}
+
+bool LinkedList::containsNode(int n) {
+    remote_ptr<Node> current = pool_->Read<Node>(head);
+    // When current == null, we have gone through the whole entire list
+    while (current != remote_nullptr) {
+        if (current->data == n) {
+            return true;
+        }
+        current = current->next;
+    }
+    // If we get to this point, we have iterated the entire list and haven't found the node
+    return false;
+}
+
+void LinkedList::printList() {
+    remote_ptr<Node> t = head;
+    while (t != remote_nullptr) {
+      ROME_INFO("{} -> ", t->data);
+      t = t->next; 
+    }
+    ROME_INFO("NULL");
+    ROME_INFO("\n");
+}
