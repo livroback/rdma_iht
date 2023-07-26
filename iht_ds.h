@@ -51,11 +51,8 @@ public:
     }
 
     void insertNode(int d);
-
     bool remove(int key);
-
     bool containsNode(int n);
-
     void printList();
 
     using conn_type = MemoryPool::conn_type;
@@ -128,38 +125,39 @@ void LinkedList::insertNode(int d) {
     // Create the new node to insert
     remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>();
     nodeToAdd->data = d;
-    ROME_INFO("new data to add is {}", nodeToAdd->data);
-
+    nodeToAdd->next = remote_nullptr; 
+    
     if (is_null(head)) {
-        ROME_INFO("Head is a null pointer!");
+        ROME_INFO("Head is a null!");
         // Change local linked list
-        head = nodeToAdd;
-        head->next = pool_->Allocate<Node>();
-        head->next = remote_nullptr;
-        ROME_INFO("Head is no longer null -- node {} has been added to head", d);
-        printList();
+        head = pool_->Allocate<Node>();
+        head = nodeToAdd; 
+        ROME_INFO("Node {} has been added to head", d);
     } else {
-        ROME_INFO("Going to be adding a node at the end of the list!!!!!!!!!!!!");
-        // Start at pointer to the head and iterate to the last node in the list
-        remote_ptr<Node> c = pool_->Read<Node>(head);
-        ROME_INFO("Value at head is = {}", c->data);
 
-        // Iterate to the last node in the list
-        while (!is_null(c->next)) {
-            c = pool_->Read<Node>(c->next);
-            ROME_INFO("Value at current is = {}", c->data);
-        }
+        nodeToAdd->next = head; 
+        head = nodeToAdd; 
 
-        // Change locally
-        c->next = pool_->Allocate<Node>();
-        c->next = nodeToAdd;
-        ROME_INFO("c-> next = {}", c->next->data);
-        nodeToAdd->next = remote_nullptr;
+    //     // nodeToAdd->next = head; 
+    //     // head = nodeToAdd; 
+    //     remote_ptr<Node> c = pool_->Read<Node>(head);
 
-        ROME_INFO("Insert complete: node {} has been added to end of the list", d);
-        printList();
-    }
+    //     // Iterate to the last node in the list
+    //     while (!is_null(c->next)) {
+    //               //To not seg fault -> cannot do pool_->Read with a null pointer 
+    //     if(is_null(c->next)){
+    //         break;
+    //     }
+    //         c = pool_->Read<Node>(c->next);
+    //         // printf(" %d -> ", c->data);
+    //     }
+
+    //     c->next = nodeToAdd; 
+    //     // printf("NULL\n ");
+ }
+            ROME_INFO("Node {} has been added to end of the list", d);
 }
+
 
 bool LinkedList::remove(int key) {
     remote_ptr<Node> previous = remote_nullptr;
@@ -173,12 +171,12 @@ bool LinkedList::remove(int key) {
                 head = head->next;
                 current = head;
                 pool_->Write<Node>(head, *current);
-                printList();
+                // printList();
             } else {
                 previous->next = current->next;
                 pool_->Write<Node>(current->next, *(previous->next));
                 current = current->next;
-                printList();
+                // printList();
             }
             return true;
         } else {
@@ -195,22 +193,28 @@ bool LinkedList::remove(int key) {
 bool LinkedList::containsNode(int n) {
     remote_ptr<Node> current = pool_->Read<Node>(head);
     // When current == null, we have gone through the whole entire list
-    while (current != remote_nullptr) {
+    while (!is_null(current)) {
         if (current->data == n) {
             return true;
         }
-        current = current->next;
+        current = pool_->Read<Node>(current->next);
     }
     // If we get to this point, we have iterated the entire list and haven't found the node
     return false;
 }
 
 void LinkedList::printList() {
-    remote_ptr<Node> t = head;
-    while (t != remote_nullptr) {
-      ROME_INFO("{} -> ", t->data);
-      t = t->next; 
+    remote_ptr<Node> t = pool_->Read<Node>(head); 
+    while (!is_null(t)) {
+      printf("%d -> ", t->data);
+      //To not seg fault -> cannot do pool_->Read with a null pointer 
+      if(is_null(t->next)){
+        break;
+      }
+      else{
+        t = pool_->Read<Node>(t->next);
+      }
     }
-    ROME_INFO("NULL");
-    ROME_INFO("\n");
+    printf("NULL");
+    printf("\n");
 }

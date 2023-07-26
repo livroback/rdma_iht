@@ -122,14 +122,14 @@ int main(int argc, char **argv)
 
     myList.insertNode(5);
     myList.insertNode(2);
-    myList.insertNode(4);
-    myList.insertNode(5); 
+    myList.insertNode(8);
     myList.insertNode(7);
+    myList.insertNode(10); 
 
     // ROME_INFO("Contains node 1 = {}", myList.containsNode(1)); 
     // ROME_INFO("Contains node 8 = {}", myList.containsNode(8)); 
 
-    // ROME_INFO("Remove node 4 = {}", myList.remove(4)); 
+    // ROME_INFO("Remove node 2 = {}", myList.remove(2)); 
     // ROME_INFO("Remove node 10 = {}", myList.remove(10)); 
-
+     myList.printList(); 
 }
