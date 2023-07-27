@@ -27,6 +27,7 @@ public:
 
 class LinkedList {
 public:
+
     remote_ptr<Node> head;
 
     LinkedList() {
@@ -124,86 +125,89 @@ void LinkedList::InitLinkedList(remote_ptr<LinkedList> p) {
 void LinkedList::insertNode(int d) {
     // Create the new node to insert
     remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>();
+
+    // [ojr] These next two lines???? Do they need a pool_Write? Not sure. 
     nodeToAdd->data = d;
     nodeToAdd->next = remote_nullptr; 
     
     if (is_null(head)) {
         ROME_INFO("Head is a null!");
-        // Change local linked list
+   
         head = pool_->Allocate<Node>();
+        // [ojr] Pool_write for this next line?? 
         head = nodeToAdd; 
         ROME_INFO("Node {} has been added to head", d);
     } else {
+        // Start at pointer to the head and iterate to the last node in the list
+        remote_ptr<Node> c = pool_->Read<Node>(head);
 
-        nodeToAdd->next = head; 
-        head = nodeToAdd; 
-
-    //     // nodeToAdd->next = head; 
-    //     // head = nodeToAdd; 
-    //     remote_ptr<Node> c = pool_->Read<Node>(head);
-
-    //     // Iterate to the last node in the list
-    //     while (!is_null(c->next)) {
-    //               //To not seg fault -> cannot do pool_->Read with a null pointer 
-    //     if(is_null(c->next)){
-    //         break;
-    //     }
-    //         c = pool_->Read<Node>(c->next);
-    //         // printf(" %d -> ", c->data);
-    //     }
-
-    //     c->next = nodeToAdd; 
-    //     // printf("NULL\n ");
- }
-            ROME_INFO("Node {} has been added to end of the list", d);
-}
-
-
-bool LinkedList::remove(int key) {
-    remote_ptr<Node> previous = remote_nullptr;
-    remote_ptr<Node> current = pool_->Read<Node>(head);
-    ROME_INFO("Past head");
-
-    // Iterate through the list
-    while (current != remote_nullptr) {
-        if (current->data == key) {
-            if (current == head) {
-                head = head->next;
-                current = head;
-                pool_->Write<Node>(head, *current);
-                // printList();
-            } else {
-                previous->next = current->next;
-                pool_->Write<Node>(current->next, *(previous->next));
-                current = current->next;
-                // printList();
-            }
-            return true;
-        } else {
-            previous = current;
-            pool_->Write<Node>(current, *(previous));
-            current = current->next;
+        // Iterate to the last node in the list
+        while (!is_null(c->next)) {
+            c = pool_->Read<Node>(c->next);
+            ROME_INFO("Value at current is = {}", c->data);
         }
-    }
 
-    // The key is not found in our linked list
-    return false;
+
+        c->next = nodeToAdd;
+
+        //[ojr] replacing line 151 with this  pool_->Write<Node>(nodeToAdd, *(c->next));   = seg fault 
+
+        ROME_INFO("c-> next = {}", c->next->data);
+
+        //[ojr] doing a pool_->Write with this also gives me a seg fault 
+        nodeToAdd->next = remote_nullptr;
+
+    }
+        ROME_INFO("Node {} has been added to end of the list", d);
 }
 
-bool LinkedList::containsNode(int n) {
-    remote_ptr<Node> current = pool_->Read<Node>(head);
-    // When current == null, we have gone through the whole entire list
-    while (!is_null(current)) {
-        if (current->data == n) {
-            return true;
-        }
-        current = pool_->Read<Node>(current->next);
-    }
-    // If we get to this point, we have iterated the entire list and haven't found the node
-    return false;
-}
+
+// bool LinkedList::remove(int key) {
+//     remote_ptr<Node> previous = remote_nullptr;
+//     remote_ptr<Node> current = pool_->Read<Node>(head);
+//     ROME_INFO("Past head");
+
+//     // Iterate through the list
+//     while (current != remote_nullptr) {
+//         if (current->data == key) {
+//             if (current == head) {
+//                 head = head->next;
+//                 current = head;
+//                 pool_->Write<Node>(head, *current);
+//                 // printList();
+//             } else {
+//                 previous->next = current->next;
+//                 pool_->Write<Node>(current->next, *(previous->next));
+//                 current = current->next;
+//                 // printList();
+//             }
+//             return true;
+//         } else {
+//             previous = current;
+//             pool_->Write<Node>(current, *(previous));
+//             current = current->next;
+//         }
+//     }
+
+//     // The key is not found in our linked list
+//     return false;
+// }
+
+// bool LinkedList::containsNode(int n) {
+//     remote_ptr<Node> current = pool_->Read<Node>(head);
+//     // When current == null, we have gone through the whole entire list
+//     while (!is_null(current)) {
+//         if (current->data == n) {
+//             return true;
+//         }
+//         current = pool_->Read<Node>(current->next);
+//     }
+//     // If we get to this point, we have iterated the entire list and haven't found the node
+//     return false;
+// }
 
 void LinkedList::printList() {
+
     remote_ptr<Node> t = pool_->Read<Node>(head); 
     while (!is_null(t)) {
       printf("%d -> ", t->data);
