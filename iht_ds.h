@@ -74,6 +74,8 @@ public:
             InitLinkedList(ll_root);
 
             this->root = ll_root;
+            // this->head = ll_root->head; //try this?? 
+
             proto.set_raddr(ll_root.address());
 
             // Iterate through peers
@@ -118,9 +120,12 @@ void LinkedList::InitLinkedList(remote_ptr<LinkedList> p) {
     if (is_null(p->head)) {
         p->head = pool_->Allocate<Node>();
         ROME_INFO("Head is allocated");
-        p->head = remote_nullptr;
+
+        // Use RDMA write to set the value of the head in remote memory
+        pool_->Write<Node>(remote_nullptr, *(p->head)); 
     }
 }
+
 
 void LinkedList::insertNode(int d) {
     // Create the new node to insert
@@ -128,14 +133,14 @@ void LinkedList::insertNode(int d) {
 
     // [ojr] These next two lines???? Do they need a pool_Write? Not sure. 
     nodeToAdd->data = d;
-    nodeToAdd->next = remote_nullptr; 
+    pool_->Write<Node>(remote_nullptr, *(nodeToAdd->next)); 
+    // nodeToAdd->next = remote_nullptr; (Replaced with the line above)
     
     if (is_null(head)) {
         ROME_INFO("Head is a null!");
-   
-        head = pool_->Allocate<Node>();
         // [ojr] Pool_write for this next line?? 
-        head = nodeToAdd; 
+        pool_->Write<Node>(nodeToAdd, *head); 
+        // head = nodeToAdd; (Replaced with the line above)
         ROME_INFO("Node {} has been added to head", d);
     } else {
         // Start at pointer to the head and iterate to the last node in the list
@@ -148,14 +153,17 @@ void LinkedList::insertNode(int d) {
         }
 
 
-        c->next = nodeToAdd;
+        // c->next = nodeToAdd;
+        pool_->Write<Node>(nodeToAdd, *(c->next)); 
 
         //[ojr] replacing line 151 with this  pool_->Write<Node>(nodeToAdd, *(c->next));   = seg fault 
 
         ROME_INFO("c-> next = {}", c->next->data);
 
         //[ojr] doing a pool_->Write with this also gives me a seg fault 
-        nodeToAdd->next = remote_nullptr;
+        // nodeToAdd->next = remote_nullptr;
+
+        pool_->Write<Node>(remote_nullptr, *(nodeToAdd->next)); 
 
     }
         ROME_INFO("Node {} has been added to end of the list", d);
