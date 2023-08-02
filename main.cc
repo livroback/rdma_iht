@@ -120,8 +120,8 @@ int main(int argc, char **argv)
     absl::Status status_linkedList = myList.Init(host, peers);
     ROME_ASSERT_OK(status_linkedList);
 
-    myList.insertNode(5);
-    myList.insertNode(2);
+    // myList.insertNode(5);
+    // myList.insertNode(2);
     // myList.insertNode(8);
     // myList.insertNode(7);
     // myList.insertNode(10); 
@@ -131,5 +131,5 @@ int main(int argc, char **argv)
 
     // ROME_INFO("Remove node 2 = {}", myList.remove(2)); 
     // ROME_INFO("Remove node 10 = {}", myList.remove(10)); 
-    myList.printList(); 
+    // myList.printList(); 
 }
