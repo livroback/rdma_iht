@@ -120,16 +120,11 @@ int main(int argc, char **argv)
     absl::Status status_linkedList = myList.Init(host, peers);
     ROME_ASSERT_OK(status_linkedList);
 
-    // myList.insertNode(5);
-    // myList.insertNode(2);
-    // myList.insertNode(8);
-    // myList.insertNode(7);
-    // myList.insertNode(10); 
+    myList.push(5);
+    myList.printList(); 
+    myList.push(6); 
+    myList.printList(); 
+    bool result = myList.pop(); 
+    myList.printList(); 
 
-    // ROME_INFO("Contains node 1 = {}", myList.containsNode(1)); 
-    // ROME_INFO("Contains node 8 = {}", myList.containsNode(8)); 
-
-    // ROME_INFO("Remove node 2 = {}", myList.remove(2)); 
-    // ROME_INFO("Remove node 10 = {}", myList.remove(10)); 
-    // myList.printList(); 
 }

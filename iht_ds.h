@@ -18,7 +18,8 @@ using ::rome::rdma::RemoteObjectProto;
 
 class LinkedList {
 
-public:
+public: 
+    
     struct Node {
     int data;
     remote_ptr<Node> next;
@@ -26,7 +27,11 @@ public:
     Node() : data(0), next(remote_nullptr) {}
     Node(int d) : data(d), next(remote_nullptr) {}
 };
-    remote_ptr<Node> head;
+
+
+
+    typedef remote_ptr<Node> remote_node;
+    remote_node head;
 
     LinkedList() {
         ROME_INFO("Running the linked list constructor");
@@ -35,6 +40,12 @@ public:
     // These two are going to be initialized at one point
     MemoryPool::Peer self_; //Local
     MemoryPool* pool_; //Local 
+
+    void InitLinkedList(remote_node p);
+    bool pop(); 
+    void push(int d); 
+    void printList(); 
+
 
     template <typename T>
     inline bool is_local(remote_ptr<T> ptr) {
@@ -45,6 +56,9 @@ public:
     inline bool is_null(remote_ptr<T> ptr) {
         return ptr == remote_nullptr;
     }
+
+
+
 
 
 
@@ -60,7 +74,8 @@ public:
             ROME_INFO("This is the host machine!");
             // Host machine, it is my responsibility to initiate configuration
             RemoteObjectProto proto;
-            remote_ptr<Node> sentinal_head = pool_->Allocate<Node>();
+            remote_node sentinal_head = pool_->Allocate<Node>();
+            sentinal_head->data = 6; 
 
             // Init plist and set remote proto to communicate its value
             InitLinkedList(sentinal_head);
@@ -96,187 +111,93 @@ public:
                 got = conn_or.value()->channel()->TryDeliver<RemoteObjectProto>();
             }
             ROME_CHECK_OK(ROME_RETURN(got.status()), got);
--
-            // From there, try to get the head of the linked list from the node
-            remote_ptr<Node> sentinal_head = decltype(sentinal_head)(host.id, got->raddr());
-            this->head = sentinal_head;
 
+            // From there, try to get the head of the linked list from the node
+            remote_node sentinal_head = decltype(sentinal_head)(host.id, got->raddr());
+            this->head = sentinal_head;
         }
 
         return absl::OkStatus();
     }
 
-void InitLinkedList(remote_ptr<Node> h) {
+};
+
+void LinkedList::InitLinkedList(remote_node h) {
     ROME_INFO("Running the init linked list function");
     h->next = remote_nullptr; //[ojr] maybe???? 
 }
 
 
-void pop(){}
-void push(){}
+bool LinkedList::pop(){
+    ROME_INFO("Popping from the front of list");
+
+    //First check to make sure we have a sentinal node , if we do not return false
+    if((is_null(head))){
+        printf("Head is null\n");
+        return false; 
+    }
+
+    //Read in the head
+    remote_node sentinal = pool_->Read<Node>(head); 
+    // [ojr] Error if I do not do this 
+    sentinal->next = pool_->Allocate<Node>(); 
 
 
-// void LinkedList::insertNode(int d) {
+    //Move the pointer of head (head = head -> next)
+    pool_->Write<Node>(sentinal, *(sentinal->next)); 
 
-//     //---------------------------
-//     //[ojr] Writing the next node as a null ends up in a seg fault so do this at the end ???? 
-//     // pool_->Write<Node>(remote_nullptr, *(head->next)); 
-//     // nodeToAdd->next = remote_nullptr; //(Replaced with the line above)
-//     //---------------------------
+    //Deallocate where the last head was 
+    pool_->Deallocate<Node>(sentinal); 
 
-
-//     //[ojr] At this point, we have allocated a head but it is not the new node 
-//     if (length == 0) {
-
-//             // Create the new node to insert
-//         remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>();
-//         nodeToAdd->data = d;
-
-//         ROME_INFO("Node {} getting added to head....", d);
-
-//          pool_->Write<Node>(head, *(nodeToAdd)); 
-
-//          // [ojr] Instead of last val pointing to null, point to a dummy value or maybe just use a length var? Nul
-
-//         length++;         
-//         ROME_INFO("Node {} has been added to head", d);
-//     } 
-//     else {
-
-//          // Create the new node to insert
-//         remote_ptr<Node> nodeToAdd = pool_->Allocate<Node>();
-//         nodeToAdd->data = d;
-        
-//         ROME_INFO("Node {} getting added to end of list....", d);
+    return true; 
+}
 
 
-// // c->next 
 
+void LinkedList::push(int d){
+    ROME_INFO("Pushing {} to front of list", d);
+    
+    //Create a node that we would like to push onto the list
+    remote_node nodeToAdd = pool_->Allocate<Node>(); 
+      nodeToAdd->data = d; 
 
-        
-       
-//         remote_ptr<Node> c = pool_->Read<Node>(head);
+    // ( [ojr] Seg fault if nodeToAdd -> next is not allocated ) 
+    nodeToAdd->next = pool_->Allocate<Node>();  
+
   
-//         printf("Value at head is %d\n", c->data); 
+    remote_node sentinal; 
 
-//         //[ojr] still need to find a way how to update the pointers to iterate through list 
+    //Read in the sentinal node 
+    if(!(is_null(head))){
+        sentinal = pool_->Read<Node>(head);
+        printf("The sentinal nodes value is %d\n", sentinal->data);
+    }
 
+    //nodeToAdd -> next = head 
+    pool_->Write<Node>((nodeToAdd->next), *(sentinal)); 
+    // (new) head = nodeToAdd
+    pool_->Write<Node>((sentinal), *(nodeToAdd));
+}
 
-//             if(is_null(c->next)){ //[ojr] this code only used for 2 nodes in list ^^ (just testing)
-//                 printf("next is null\n");
-//                 // c->next = pool_->Allocate<Node>();
-//                 pool_->Write<Node>(c->next, *(nodeToAdd));  
-//             }
-        
+void LinkedList::printList() {
+    remote_ptr<Node> t = pool_->Read<Node>(head); 
+    while(!(is_null(t))){
 
-//         printf("Value at head->next is %d\n", c->next->data);
- 
+          printf("%d", t->data); 
+          t = t->next; 
 
-//     //----------------------------------------------------
+    }
 
-//         // //[ojr] replacing line 151 with this  pool_->Write<Node>(nodeToAdd, *(c->next));   = seg fault 
-
-//         // //[ojr] doing a pool_->Write with this also gives me a seg fault 
-//         // // nodeToAdd->next = remote_nullptr;
-
-//         // pool_->Write<Node>(remote_nullptr, *(nodeToAdd->next)); 
-
-//         //-------------------------
-
-//         length++; 
-//         printf("LENGTH (END OF LIST) = %d\n", length); 
-        
-//         ROME_INFO("Node {} has been added to end of the list", d);
-
-//     }
-       
-// }
-
-
-// bool LinkedList::remove(int key) {
-//     remote_ptr<Node> previous = remote_nullptr;
-//     remote_ptr<Node> current = pool_->Read<Node>(head);
-//     ROME_INFO("Past head");
-
-//     // Iterate through the list
-//     while (current != remote_nullptr) {
-//         if (current->data == key) {
-//             if (current == head) {
-//                 head = head->next;
-//                 current = head;
-//                 pool_->Write<Node>(head, *current);
-//                 // printList();
-//             } else {
-//                 previous->next = current->next;
-//                 pool_->Write<Node>(current->next, *(previous->next));
-//                 current = current->next;
-//                 // printList();
-//             }
-//             return true;
-//         } else {
-//             previous = current;
-//             pool_->Write<Node>(current, *(previous));
-//             current = current->next;
-//         }
-//     }
-
-//     // The key is not found in our linked list
-//     return false;
-// }
-
-// bool LinkedList::containsNode(int n) {
-//     remote_ptr<Node> current = pool_->Read<Node>(head);
-//     // When current == null, we have gone through the whole entire list
-//     while (!is_null(current)) {
-//         if (current->data == n) {
-//             return true;
-//         }
-//         current = pool_->Read<Node>(current->next);
-//     }
-//     // If we get to this point, we have iterated the entire list and haven't found the node
-//     return false;
-// }
-
-// void LinkedList::printList() {
-
-//     //[ojr] this code gives a remote access error even when we only have 5->2 -> null as our list 
-//     //[ojr] just wrote this to test if head->next is there(line 239) gives the error 
-//     remote_ptr<Node> t = pool_->Read<Node>(head); 
-//               printf("%d -> ", t->data);
-//     remote_ptr<Node> x = pool_->Read<Node>(head->next); 
-//                   printf("%d -> ", x->data);
-
-// //------------------------------------------------------
+    printf("NULL");
+    printf("\n");
+}
 
 
 
 
 
-//     // for(int i=0; i<length; i++){
-//     //       printf("%d -> ", t->data);
-//     //           t = pool_->Read<Node>(t->next);
-//     //   //To not seg fault -> cannot do pool_->Read with a null pointer 
-//     //   if(is_null(t->next)){
-//     //     printf("boom");
-//     //     break;
-//     //   }
-//     //   else{
-//     //     t = pool_->Read<Node>(t->next);
-//     //   }
 
-//     // }
-//     // while (!is_null(t)) {
-//     //   printf("%d -> ", t->data);
-//     //   //To not seg fault -> cannot do pool_->Read with a null pointer 
-//     //   if(is_null(t->next)){
-//     //     break;
-//     //   }
-//     //   else{
-//     //     t = pool_->Read<Node>(t->next);
-//     //   }
-//     // }
-//     printf("NULL");
-//     printf("\n");
-// }
 
-};
+
+
+
